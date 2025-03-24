@@ -1,0 +1,47 @@
+import nmap
+import argparse
+import json
+
+def scan_network(target, options):
+    nm = nmap.PortScanner()
+    print(f"Scanning {target} with options: {options}")
+    nm.scan(target, arguments=options)
+    
+    results = {}
+    for host in nm.all_hosts():
+        results[host] = {
+            "status": nm[host].state(),
+            "hostnames": nm[host].hostnames(),
+            "os": nm[host].get("osmatch", []),
+            "ports": []
+        }
+        
+        for proto in nm[host].all_protocols():
+            for port in nm[host][proto]:
+                results[host]["ports"].append({
+                    "port": port,
+                    "state": nm[host][proto][port]["state"],
+                    "service": nm[host][proto][port]["name"],
+                    "version": nm[host][proto][port].get("version", "")
+                })
+    
+    return results
+
+def main():
+    parser = argparse.ArgumentParser(description='Advanced Nmap Scanner')
+    parser.add_argument('-t', '--target', required=True, help='Target IP or range')
+    parser.add_argument('-o', '--options', default='-sV -O', help='Nmap scan options')
+    parser.add_argument('-f', '--file', help='Save output to file (JSON)')
+    
+    args = parser.parse_args()
+    scan_results = scan_network(args.target, args.options)
+    
+    print(json.dumps(scan_results, indent=4))
+    
+    if args.file:
+        with open(args.file, 'w') as f:
+            json.dump(scan_results, f, indent=4)
+        print(f"Results saved to {args.file}")
+
+if __name__ == '__main__':
+    main()
